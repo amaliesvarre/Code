@@ -13,3 +13,8 @@ app.include_router(auth.router)
 def root():
     return {"message": "Backend is running 🚀"}
 
+from pages import router as pages_router
+from matching import router as matching_router
+
+app.include_router(pages_router)
+app.include_router(matching_router)
