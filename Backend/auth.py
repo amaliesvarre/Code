@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta, timezone
+from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.exc import IntegrityError
@@ -45,22 +45,55 @@ def create_access_token(data: dict) -> str:
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid token",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email = payload.get("sub")
+
+        if email is None:
+            raise credentials_exception
+
     except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+        raise credentials_exception
 
     user = db.query(models.User).filter(models.User.email == email).first()
 
     if user is None:
-        raise HTTPException(status_code=401, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     return user
 
 
-@router.post("/register", response_model=schemas.MessageResponse, status_code=status.HTTP_201_CREATED)
+def require_role(allowed_roles: List[str]):
+    def role_checker(current_user: models.User = Depends(get_current_user)):
+        if current_user.role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized for this resource"
+            )
+        return current_user
+
+    return role_checker
+
+
+@router.post(
+    "/register",
+    response_model=schemas.MessageResponse,
+    status_code=status.HTTP_201_CREATED
+)
 def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     existing_user = db.query(models.User).filter(models.User.email == user.email).first()
 
@@ -71,7 +104,12 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
         )
 
     hashed_pw = hash_password(user.password)
-    db_user = models.User(email=user.email, password=hashed_pw)
+
+    db_user = models.User(
+        email=user.email,
+        password=hashed_pw,
+        role=user.role
+    )
 
     try:
         db.add(db_user)
@@ -87,17 +125,31 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     return {"message": "User created successfully"}
 
 
-@router.post("/login")
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+@router.post("/login", response_model=schemas.TokenResponse)
+def login(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db)
+):
     db_user = db.query(models.User).filter(models.User.email == form_data.username).first()
 
     if not db_user:
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password"
+        )
 
     if not verify_password(form_data.password, db_user.password):
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password"
+        )
 
-    access_token = create_access_token(data={"sub": db_user.email})
+    access_token = create_access_token(
+        data={
+            "sub": db_user.email,
+            "role": db_user.role
+        }
+    )
 
     return {
         "access_token": access_token,
@@ -109,5 +161,33 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 def get_me(current_user: models.User = Depends(get_current_user)):
     return {
         "id": current_user.id,
-        "email": current_user.email
+        "email": current_user.email,
+        "role": current_user.role
+    }
+
+
+@router.get("/user-only")
+def user_only(current_user: models.User = Depends(require_role(["user"]))):
+    return {
+        "message": "Welcome user",
+        "email": current_user.email,
+        "role": current_user.role
+    }
+
+
+@router.get("/operator-only")
+def operator_only(current_user: models.User = Depends(require_role(["operator"]))):
+    return {
+        "message": "Welcome operator",
+        "email": current_user.email,
+        "role": current_user.role
+    }
+
+
+@router.get("/supplier-only")
+def supplier_only(current_user: models.User = Depends(require_role(["supplier"]))):
+    return {
+        "message": "Welcome supplier",
+        "email": current_user.email,
+        "role": current_user.role
     }

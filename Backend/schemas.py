@@ -7,10 +7,21 @@ from datetime import datetime
 # USER SCHEMAS
 # -------------------------
 
+from pydantic import BaseModel, EmailStr
+from typing import Literal
+
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
+    role: Literal["user", "operator", "supplier"]
 
+class UserResponse(BaseModel):
+    id: int
+    email: EmailStr
+    role: str
+
+    class Config:
+        from_attributes = True
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -58,12 +69,11 @@ class MatchRequestCreate(BaseModel):
 
 class MatchRequestResponse(BaseModel):
     id: int
-    energy_type: str
-    capacity: int
-    location: str
-    preferences: Optional[str]
-    created_at: datetime
     user_id: int
+    province: str
+    need_type: str
+    message: Optional[str]
+    status: str
 
     class Config:
         from_attributes = True

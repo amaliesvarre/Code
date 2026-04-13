@@ -12,15 +12,13 @@ class MatchRequest(Base):
     __tablename__ = "match_requests"
 
     id = Column(Integer, primary_key=True, index=True)
-    energy_type = Column(String)
-    capacity = Column(Integer)
-    location = Column(String)
-    preferences = Column(String)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    province = Column(String, nullable=False)
+    need_type = Column(String, nullable=False)
+    message = Column(Text, nullable=True)
+    status = Column(String, nullable=False, default="pending")
 
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-    user_id = Column(Integer, ForeignKey("users.id"))
-    user = relationship("User")
+    user = relationship("User", back_populates="match_requests")
 
 
 class User(Base):
@@ -29,6 +27,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
     password = Column(String, nullable=False)
+    role = Column(String, nullable=False, default="user")
 
     simulations = relationship("Simulation", back_populates="owner")
 
@@ -37,10 +36,10 @@ class Simulation(Base):
     __tablename__ = "simulations"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     title = Column(String, nullable=False)
     input_data = Column(Text, nullable=False)
     result_data = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    owner = relationship("User", back_populates="simulations")
+    user = relationship("User")

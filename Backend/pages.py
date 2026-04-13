@@ -3,22 +3,37 @@ from fastapi import APIRouter
 router = APIRouter(tags=["Pages"])
 
 
-@router.get("/")
+@router.get("/home")
 def home():
     return {
-        "message": "Welcome to the REC / HUB platform",
-        "status": "API is running"
+        "page": "Home",
+        "message": "Welcome to CENet Energy HUB"
     }
 
 
 @router.get("/about")
 def about():
     return {
-        "project": "REC / HUB Matching Platform",
-        "description": "This platform matches energy producers and consumers within Renewable Energy Communities (REC) and energy hubs.",
-        "how_it_works": [
-            "Users submit their energy data",
-            "The system processes and matches suitable partners",
-            "Results are stored and can be retrieved later"
+        "page": "About / How it works",
+        "message": "CENet connects end users, CER operators, and suppliers in one energy ecosystem."
+    }
+
+
+@router.get("/platform-roles")
+def platform_roles():
+    return {
+        "roles": [
+            {
+                "name": "user",
+                "description": "Households and SMEs using simulations, matching, and REC discovery."
+            },
+            {
+                "name": "operator",
+                "description": "CER operators managing communities, incentives, and dashboards."
+            },
+            {
+                "name": "supplier",
+                "description": "Suppliers receiving leads and offering services in the platform."
+            }
         ]
     }

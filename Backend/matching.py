@@ -1,48 +1,62 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from database import SessionLocal
-import models, schemas
-from auth import get_current_user
+
+from auth import get_db, get_current_user, require_role
+import models
+import schemas
 
 router = APIRouter(prefix="/matching", tags=["Matching"])
 
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-# CREATE MATCH REQUEST
-@router.post("/", response_model=schemas.MatchRequestResponse)
-def create_match(
+@router.post("/", status_code=status.HTTP_201_CREATED)
+def create_match_request(
     request: schemas.MatchRequestCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
+    current_user: models.User = Depends(require_role(["user"]))
 ):
-    new_request = models.MatchRequest(
-        energy_type=request.energy_type,
-        capacity=request.capacity,
-        location=request.location,
-        preferences=request.preferences,
-        user_id=current_user.id
+    db_request = models.MatchRequest(
+        user_id=current_user.id,
+        province=request.province,
+        need_type=request.need_type,
+        message=request.message,
+        status="pending"
     )
 
-    db.add(new_request)
+    db.add(db_request)
     db.commit()
-    db.refresh(new_request)
+    db.refresh(db_request)
 
-    return new_request
+    return {
+        "message": "Match request created successfully",
+        "match_request": {
+            "id": db_request.id,
+            "user_id": db_request.user_id,
+            "province": db_request.province,
+            "need_type": db_request.need_type,
+            "message": db_request.message,
+            "status": db_request.status
+        }
+    }
 
 
-# GET USER MATCHES
-@router.get("/", response_model=list[schemas.MatchRequestResponse])
-def get_my_matches(
+@router.get("/my-requests")
+def get_my_match_requests(
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
+    current_user: models.User = Depends(require_role(["user"]))
 ):
-    return db.query(models.MatchRequest).filter(
-        models.MatchRequest.user_id == current_user.id
-    ).all()
+    requests = (
+        db.query(models.MatchRequest)
+        .filter(models.MatchRequest.user_id == current_user.id)
+        .all()
+    )
+
+    return requests
+
+
+@router.get("/all")
+def get_all_match_requests(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_role(["operator", "supplier"]))
+):
+    requests = db.query(models.MatchRequest).all()
+    return requests
