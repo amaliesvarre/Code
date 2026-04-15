@@ -166,6 +166,55 @@ def get_me(current_user: models.User = Depends(get_current_user)):
     }
 
 
+@router.put("/me")
+def update_me(
+    user_update: schemas.UserUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    if user_update.email is not None:
+        existing_user = (
+            db.query(models.User)
+            .filter(
+                models.User.email == user_update.email,
+                models.User.id != current_user.id
+            )
+            .first()
+        )
+
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already in use"
+            )
+
+        current_user.email = user_update.email
+
+    if user_update.password is not None:
+        current_user.password = hash_password(user_update.password)
+
+    if user_update.role is not None:
+        current_user.role = user_update.role
+
+    try:
+        db.commit()
+        db.refresh(current_user)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Could not update profile"
+        )
+
+    return {
+        "message": "Profile updated successfully",
+        "user": {
+            "id": current_user.id,
+            "email": current_user.email,
+            "role": current_user.role
+        }
+    }
+
 @router.get("/user-only")
 def user_only(current_user: models.User = Depends(require_role(["user"]))):
     return {

@@ -4,17 +4,17 @@ from database import Base, engine
 from auth import router as auth_router
 from matching import router as matching_router
 from pages import router as pages_router
-import models  # important so SQLAlchemy sees the models
+from simulations import router as simulations_router
+import models
 
 app = FastAPI(title="CENet Backend")
 
-# Create tables
 Base.metadata.create_all(bind=engine)
 
-# Routers
 app.include_router(auth_router)
 app.include_router(matching_router)
 app.include_router(pages_router)
+app.include_router(simulations_router)
 
 
 @app.get("/")

@@ -1,19 +1,24 @@
-from pydantic import BaseModel, EmailStr
-from typing import Optional
 from datetime import datetime
+from typing import Literal, Optional
+
+from pydantic import BaseModel, EmailStr
 
 
 # -------------------------
 # USER SCHEMAS
 # -------------------------
 
-from pydantic import BaseModel, EmailStr
-from typing import Literal
-
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
     role: Literal["user", "operator", "supplier"]
+
+
+class UserUpdate(BaseModel):
+    email: Optional[EmailStr] = None
+    password: Optional[str] = None
+    role: Optional[Literal["user", "operator", "supplier"]] = None
+
 
 class UserResponse(BaseModel):
     id: int
@@ -22,6 +27,7 @@ class UserResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -57,14 +63,15 @@ class SimulationResponse(BaseModel):
     class Config:
         from_attributes = True
 
-        from typing import Optional
 
+# -------------------------
+# MATCHING SCHEMAS
+# -------------------------
 
 class MatchRequestCreate(BaseModel):
-    energy_type: str
-    capacity: int
-    location: str
-    preferences: Optional[str] = None
+    province: str
+    need_type: str
+    message: Optional[str] = None
 
 
 class MatchRequestResponse(BaseModel):
@@ -72,7 +79,7 @@ class MatchRequestResponse(BaseModel):
     user_id: int
     province: str
     need_type: str
-    message: Optional[str]
+    message: Optional[str] = None
     status: str
 
     class Config:

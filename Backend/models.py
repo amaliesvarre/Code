@@ -1,12 +1,22 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Text
-from sqlalchemy.orm import relationship
 from datetime import datetime
+
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import relationship
 
 from database import Base
 
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
-from sqlalchemy.orm import relationship
-from datetime import datetime
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, unique=True, index=True, nullable=False)
+    password = Column(String, nullable=False)
+    role = Column(String, nullable=False, default="user")
+
+    match_requests = relationship("MatchRequest", back_populates="user")
+    simulations = relationship("Simulation", back_populates="user")
+
 
 class MatchRequest(Base):
     __tablename__ = "match_requests"
@@ -21,17 +31,6 @@ class MatchRequest(Base):
     user = relationship("User", back_populates="match_requests")
 
 
-class User(Base):
-    __tablename__ = "users"
-
-    id = Column(Integer, primary_key=True, index=True)
-    email = Column(String, unique=True, index=True, nullable=False)
-    password = Column(String, nullable=False)
-    role = Column(String, nullable=False, default="user")
-
-    simulations = relationship("Simulation", back_populates="owner")
-
-
 class Simulation(Base):
     __tablename__ = "simulations"
 
@@ -42,4 +41,4 @@ class Simulation(Base):
     result_data = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    user = relationship("User")
+    user = relationship("User", back_populates="simulations")
